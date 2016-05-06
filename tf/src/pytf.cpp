@@ -476,10 +476,7 @@ static PyMethodDef module_methods[] = {
   {NULL, NULL, NULL},
 };
 
-extern "C" void init_tf()
-{
-  PyObject *item, *m, *d;
-
+bool staticInit() {
 #if PYTHON_API_VERSION >= 1007
   tf_exception = PyErr_NewException((char*)"tf.Exception", NULL, NULL);
   tf_connectivityexception = PyErr_NewException((char*)"tf.ConnectivityException", tf_exception, NULL);
@@ -492,7 +489,7 @@ extern "C" void init_tf()
   tf_extrapolationexception = stringToPython("tf.ExtrapolationException");
 #endif
 
-  pModulerospy = PyImport_Import(item= stringToPython("rospy")); Py_DECREF(item);
+  pModulerospy = pythonImport("rospy");
 
   transformer_Type.tp_alloc = PyType_GenericAlloc;
   transformer_Type.tp_new = PyType_GenericNew;
@@ -500,13 +497,41 @@ extern "C" void init_tf()
   transformer_Type.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   transformer_Type.tp_methods = transformer_methods;
   if (PyType_Ready(&transformer_Type) != 0)
-    return;
+    return false;
+  return true;
+}
 
-  m = Py_InitModule("_tf", module_methods);
+PyObject * moduleInit(PyObject * m) {
   PyModule_AddObject(m, "Transformer", (PyObject *)&transformer_Type);
-  d = PyModule_GetDict(m);
+  PyObject *d = PyModule_GetDict(m);
   PyDict_SetItemString(d, "Exception", tf_exception);
   PyDict_SetItemString(d, "ConnectivityException", tf_connectivityexception);
   PyDict_SetItemString(d, "LookupException", tf_lookupexception);
   PyDict_SetItemString(d, "ExtrapolationException", tf_extrapolationexception);
+  return m;
 }
+
+#if PY_MAJOR_VERSION < 3
+extern "C" void init_tf()
+{
+  if (!staticInit())
+    return;
+  moduleInit(Py_InitModule("_tf", module_methods));
+}
+
+#else
+struct PyModuleDef tf_module = {
+  PyModuleDef_HEAD_INIT, // base
+  "_tf",                 // name
+  NULL,                  // docstring
+  -1,                    // state size (but we're using globals)
+  module_methods         // methods
+};
+
+PyMODINIT_FUNC PyInit_tf2()
+{
+  if (!staticInit())
+    return NULL;
+  return moduleInit(PyModule_Create(&tf_module));
+}
+#endif
