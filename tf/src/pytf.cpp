@@ -29,6 +29,7 @@
 #include <Python.h>
 
 #include "tf/tf.h"
+#include "python_compat.h"
 
 // Run x (a tf method, catching TF's exceptions and reraising them as Python exceptions)
 //
@@ -128,7 +129,7 @@ static PyObject *setUsingDedicatedThread(PyObject *self, PyObject *args)
     return NULL;
   tf::Transformer *t = ((transformer_t*)self)->t;
   t->setUsingDedicatedThread(value);
-  return PyString_FromString(t->allFramesAsDot().c_str());
+  return stringToPython(t->allFramesAsDot());
 }
 
 static PyObject *getTFPrefix(PyObject *self, PyObject *args)
@@ -136,7 +137,7 @@ static PyObject *getTFPrefix(PyObject *self, PyObject *args)
   if (!PyArg_ParseTuple(args, ""))
     return NULL;
   tf::Transformer *t = ((transformer_t*)self)->t;
-  return PyString_FromString(t->getTFPrefix().c_str());
+  return stringToPython(t->getTFPrefix());
 }
 
 static PyObject *allFramesAsDot(PyObject *self, PyObject *args, PyObject *kw)
@@ -146,13 +147,13 @@ static PyObject *allFramesAsDot(PyObject *self, PyObject *args, PyObject *kw)
   ros::Time time;
   if (!PyArg_ParseTupleAndKeywords(args, kw, "|O&", (char**)keywords, rostime_converter, &time))
     return NULL;
-  return PyString_FromString(t->allFramesAsDot(time.toSec()).c_str());
+  return stringToPython(t->allFramesAsDot(time.toSec()));
 }
 
 static PyObject *allFramesAsString(PyObject *self, PyObject *args)
 {
   tf::Transformer *t = ((transformer_t*)self)->t;
-  return PyString_FromString(t->allFramesAsString().c_str());
+  return stringToPython(t->allFramesAsString());
 }
 
 static PyObject *canTransform(PyObject *self, PyObject *args, PyObject *kw)
@@ -253,7 +254,7 @@ static PyObject *asListOfStrings(std::vector< std::string > los)
   PyObject *r = PyList_New(los.size());
   size_t i;
   for (i = 0; i < los.size(); i++) {
-    PyList_SetItem(r, i, PyString_FromString(los[i].c_str()));
+    PyList_SetItem(r, i, stringToPython(los[i]));
   }
   return r;
 }
@@ -400,8 +401,8 @@ static PyObject *setTransform(PyObject *self, PyObject *args)
     return NULL;
   tf::StampedTransform transform;
   PyObject *header = PyObject_BorrowAttrString(py_transform, "header");
-  transform.child_frame_id_ = PyString_AsString(PyObject_BorrowAttrString(py_transform, "child_frame_id"));
-  transform.frame_id_ = PyString_AsString(PyObject_BorrowAttrString(header, "frame_id"));
+  transform.child_frame_id_ = stringFromPython(PyObject_BorrowAttrString(py_transform, "child_frame_id"));
+  transform.frame_id_ = stringFromPython(PyObject_BorrowAttrString(header, "frame_id"));
   if (rostime_converter(PyObject_BorrowAttrString(header, "stamp"), &transform.stamp_) != 1)
     return NULL;
 
@@ -485,13 +486,13 @@ extern "C" void init_tf()
   tf_lookupexception = PyErr_NewException((char*)"tf.LookupException", tf_exception, NULL);
   tf_extrapolationexception = PyErr_NewException((char*)"tf.ExtrapolationException", tf_exception, NULL);
 #else
-  tf_exception = PyString_FromString("tf.error");
-  tf_connectivityexception = PyString_FromString("tf.ConnectivityException");
-  tf_lookupexception = PyString_FromString("tf.LookupException");
-  tf_extrapolationexception = PyString_FromString("tf.ExtrapolationException");
+  tf_exception = stringToPython("tf.error");
+  tf_connectivityexception = stringToPython("tf.ConnectivityException");
+  tf_lookupexception = stringToPython("tf.LookupException");
+  tf_extrapolationexception = stringToPython("tf.ExtrapolationException");
 #endif
 
-  pModulerospy = PyImport_Import(item= PyString_FromString("rospy")); Py_DECREF(item);
+  pModulerospy = PyImport_Import(item= stringToPython("rospy")); Py_DECREF(item);
 
   transformer_Type.tp_alloc = PyType_GenericAlloc;
   transformer_Type.tp_new = PyType_GenericNew;
