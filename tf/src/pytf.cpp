@@ -476,7 +476,7 @@ static struct PyMethodDef transformer_methods[] =
 
 static PyMethodDef module_methods[] = {
   // {"Transformer", mkTransformer, METH_VARARGS},
-  {NULL, NULL, NULL},
+  {NULL, NULL, 0, NULL},
 };
 
 bool staticInit() {
